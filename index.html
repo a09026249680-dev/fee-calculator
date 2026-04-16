@@ -203,7 +203,7 @@
             <td><input type="text" class="eda-input in-eda" value="${edaVal}"></td>
             <td class="model-cell">
                 <input type="text" class="text-input row-model ${isM?'input-readonly':''}" value="${isM?item.model:''}" ${isM?'readonly':''}>
-                <div class="row-alert">${item?.isCharter?'※チャーター':''} ${item?.isAssist?'※助手':''}</div>
+                <div class="row-alert">${item?.isCharter?'※チャーター扱い':''} ${item?.isAssist?'※助手あり':''}</div>
                 <input type="hidden" class="in-charter" value="${item?.isCharter?'1':'0'}">
                 <input type="hidden" class="in-assist" value="${item?.isAssist?'1':'0'}">
                 <input type="hidden" class="in-only-k" value="${item?.onlyKinroji?'1':'0'}">
