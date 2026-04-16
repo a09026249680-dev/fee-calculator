@@ -152,10 +152,10 @@
             if (!response.ok) throw new Error();
             const text = await response.text();
             processCSVData(text);
-            statusEl.innerText = "GitHubマスタ読込完了 ✓";
+            statusEl.innerText = "商品マスター読込完了 ✓";
             statusEl.style.color = "#27ae60";
         } catch (e) {
-            statusEl.innerText = "マスタ読込失敗（URLエラー）";
+            statusEl.innerText = "商品マスター読込失敗（エラー）";
             statusEl.style.color = "#e74c3c";
         }
     }
