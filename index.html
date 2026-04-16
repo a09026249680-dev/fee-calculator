@@ -79,9 +79,9 @@
             <datalist id="modelCandidates"></datalist>
         </div>
         <div class="option-group">
-            <span>近ロジオプション:</span>
+            <span>近ロジ配送条件:</span>
             <label style="cursor:pointer;"><input type="checkbox" id="globalCharter"> チャーター</label>
-            <label style="cursor:pointer;"><input type="checkbox" id="globalAssist"> 助手</label>
+            <label style="cursor:pointer;"><input type="checkbox" id="globalAssist"> 助手あり</label>
         </div>
         <div style="margin-left:auto;">
             <button onclick="deleteSelected()" style="background:#ff7675; border:1px solid #d63031; color:white; padding:5px 10px; cursor:pointer; border-radius:3px;">選択削除</button>
@@ -93,14 +93,14 @@
             <tr>
                 <th><input type="checkbox" onclick="toggleAll(this)"></th>
                 <th>No</th>
-                <th>枝番</th>
+                <th>梱包数</th>
                 <th>型番</th>
                 <th>数量</th>
-                <th>縦</th><th>横</th><th>高</th>
-                <th>3辺計</th>
-                <th>実重</th>
+                <th>縦mm</th><th>横mm</th><th>高mm</th>
+                <th>3辺計mm</th>
+                <th>実重量kg</th>
                 <th style="width:110px;">判別モード</th>
-                <th>判定重(計)</th>
+                <th>判定重量(計)</th>
                 <th>操作</th>
             </tr>
         </thead>
@@ -110,7 +110,7 @@
     <button onclick="addRow(null)" style="margin-top:10px; padding:8px 15px; cursor:pointer;">＋ 空白行を追加</button>
 
     <div class="total-weight-display">
-        近鉄ロジスティクス 合計判定重量: <span id="totalW">0.0</span> kg
+        合計重量: <span id="totalW">0.0</span> kg
     </div>
 
     <button class="btn-calc" onclick="calculate()">運賃を計算する</button>
