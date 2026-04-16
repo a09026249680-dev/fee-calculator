@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>運賃比較シミュレーター (完全版)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f0f0f0; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .config-section { background: #eee; padding: 15px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; border-radius: 4px; border: 1px solid #ccc; }
+        .config-item { display: flex; flex-direction: column; gap: 5px; }
+        .config-item label { font-size: 12px; font-weight: bold; color: #444; }
+        .fee-input { width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; text-align: right; }
+        
+        .batch-bar { background: #dfe6e9; padding: 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; border: 1px solid #ccc; border-radius: 4px; }
+        .option-group { background: #fff3cd; padding: 5px 15px; border-radius: 4px; border: 1px dashed #e67e22; display: flex; gap: 15px; align-items: center; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 6px 4px; text-align: center; font-size: 11px; vertical-align: middle; }
+        th { background: #f8f8f8; white-space: nowrap; }
+        
+        .row-alert { color: #d63031; font-weight: bold; font-size: 9px; }
+        .qty-input { width: 40px; text-align: center; }
+        .eda-input { width: 50px; text-align: center; border: 1px solid #ddd; }
+        .size-input { width: 40px; text-align: center; border: 1px solid #ddd; }
+        .text-input { width: 130px; text-align: left; border: 1px solid #ddd; padding: 4px; }
+        
+        /* 判別モードボタン */
+        .row-mode-selector { display: flex; gap: 1px; justify-content: center; background: #eee; padding: 2px; border-radius: 4px; }
+        .row-mode-selector button { border: none; padding: 4px 10px; cursor: pointer; font-size: 10px; border-radius: 2px; background: #fff; color: #666; }
+        .row-mode-selector button.active.mode-weight { background: #0984e3; color: #fff; font-weight: bold; }
+        .row-mode-selector button.active.mode-vol { background: #e67e22; color: #fff; font-weight: bold; }
+
+        .out-judge-total { font-weight: bold; font-size: 13px; background: #f9f9f9; width: 70px; }
+        .status-vol { background: #fff5e6 !important; color: #e67e22; }
+        .status-weight { background: #eef7ff !important; color: #0984e3; }
+
+        .total-weight-display { text-align: right; font-size: 1.2em; font-weight: bold; margin: 15px 0; padding: 10px; background: #fff3cd; border-radius: 4px; }
+        .result-cards { display: flex; gap: 15px; margin-top: 20px; }
+        .card { flex: 1; padding: 20px; border: 1px solid #ccc; text-align: center; border-radius: 5px; background: white; }
+        .price { font-size: 24px; font-weight: bold; margin-top: 10px; color: #d63031; }
+        .out-of-size { color: #b2bec3; font-size: 18px !important; }
+        .btn-calc { width: 100%; padding: 15px; background: #2d3436; color: white; font-size: 18px; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        .input-readonly { background-color: #f1f3f5; color: #495057; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>運賃比較シミュレーター</h2>
+
+    <div class="config-section">
+        <div class="config-item">
+            <label>マスタ読込 (CSV)</label>
+            <input type="file" id="csvFile" accept=".csv">
+        </div>
+        <div class="config-item">
+            <label>配送先</label>
+            <select id="destination" style="padding: 5px; width: 150px;">
+                <option value="">都道府県を選択</option>
+                <script>
+                    const prefs = ["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+                    prefs.forEach(p => document.write(`<option value="${p}">${p}</option>`));
+                </script>
+            </select>
+        </div>
+        <div class="config-item">
+            <label>チャーター費 ／ 助手費1名</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="inputCharterFee" class="fee-input" value="24500">
+                <input type="number" id="inputAssistFee" class="fee-input" value="10000">
+            </div>
+        </div>
+    </div>
+
+    <div class="batch-bar">
+        <div class="config-item">
+            <label>型番検索</label>
+            <input type="text" id="modelInput" list="modelCandidates" placeholder="型番入力＋Enter" style="padding: 5px; width: 180px;">
+            <datalist id="modelCandidates"></datalist>
+        </div>
+        <div class="option-group">
+            <span>近ロジ設定:</span>
+            <label style="cursor:pointer;"><input type="checkbox" id="globalCharter"> チャーター</label>
+            <label style="cursor:pointer;"><input type="checkbox" id="globalAssist"> 助手あり</label>
+        </div>
+        <div style="margin-left:auto;">
+            <button onclick="deleteSelected()" style="background:#ff7675; border:1px solid #d63031; color:white; padding:5px 10px; cursor:pointer; border-radius:3px;">選択削除</button>
+        </div>
+    </div>
+
+    <table id="pkgTable">
+        <thead>
+            <tr>
+                <th><input type="checkbox" onclick="toggleAll(this)"></th>
+                <th>No</th>
+                <th>個口数</th>
+                <th>型番</th>
+                <th>数量</th>
+                <th>縦mm</th><th>横mm</th><th>高さｍｍ</th>
+                <th>3辺計mm</th>
+                <th>実重量kg</th>
+                <th style="width:110px;">実重量or容積</th>
+                <th>重量(計)kg</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="pkgBody"></tbody>
+    </table>
+
+    <button onclick="addRow(null)" style="margin-top:10px; padding:8px 15px; cursor:pointer;">＋ 空白行を追加</button>
+
+    <div class="total-weight-display">
+        近鉄ロジスティクス 合計重量: <span id="totalW">0.0</span> kg
+    </div>
+
+    <button class="btn-calc" onclick="calculate()">運賃を計算する</button>
+
+    <div class="result-cards">
+        <div class="card"><div>佐川急便</div><div id="res-sagawa" class="price">-</div></div>
+        <div class="card"><div>ヤマト運輸</div><div id="res-yamato" class="price">-</div></div>
+        <div class="card" style="border:2px solid #d63031;">
+            <div>近鉄ロジスティクス</div>
+            <div id="res-kintetsu" class="price">-</div>
+            <div id="res-kintetsu-detail" style="font-size:11px; color:#666; margin-top:5px; text-align:left;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- エリアマッピング ---
+    const PREF_TO_SAGAWA = {"北海道":"北海道","青森県":"北東北","岩手県":"北東北","秋田県":"北東北","宮城県":"南東北","山形県":"南東北","福島県":"南東北","茨城県":"関東","栃木県":"関東","群馬県":"関東","埼玉県":"関東","千葉県":"関東","東京都":"関東","神奈川県":"関東","新潟県":"甲信越","山梨県":"甲信越","長野県":"甲信越","岐阜県":"中部","静岡県":"中部","愛知県":"中部","三重県":"中部","富山県":"北陸","石川県":"北陸","福井県":"北陸","滋賀県":"関西","京都府":"関西","大阪府":"関西","兵庫県":"関西","奈良県":"関西","和歌山県":"関西","鳥取県":"中国","島根県":"中国","岡山県":"中国","広島県":"中国","山口県":"中国","徳島県":"四国","香川県":"四国","愛媛県":"四国","高知県":"四国","福岡県":"北九州","佐賀県":"北九州","長崎県":"北九州","大分県":"北九州","熊本県":"南九州","宮崎県":"南九州","鹿児島県":"南九州","沖縄県":"沖縄"};
+    const PREF_TO_YAMATO = {"北海道":"北海道","青森県":"北東北","岩手県":"北東北","秋田県":"北東北","宮城県":"南東北","山形県":"南東北","福島県":"南東北","茨城県":"関東","栃木県":"関東","群馬県":"関東","埼玉県":"関東","千葉県":"関東","東京都":"関東","神奈川県":"関東","山梨県":"関東","新潟県":"甲信越","長野県":"甲信越","岐阜県":"中部","静岡県":"中部","愛知県":"中部","三重県":"中部","富山県":"北陸","石川県":"北陸","福井県":"北陸","滋賀県":"関西","京都府":"関西","大阪府":"関西","兵庫県":"関西","奈良県":"関西","和歌山県":"関西","鳥取県":"中国","島根県":"中国","岡山県":"中国","広島県":"中国","山口県":"中国","徳島県":"四国","香川県":"四国","愛媛県":"四国","高知県":"四国","福岡県":"九州","佐賀県":"九州","長崎県":"九州","大分県":"九州","熊本県":"九州","宮崎県":"九州","鹿児島県":"九州","沖縄県":"沖縄"};
+    const PREF_TO_KINROJI = {"北海道":"北海道","青森県":"北東北","岩手県":"北東北","秋田県":"北東北","宮城県":"南東北","山形県":"南東北","福島県":"南東北","茨城県":"関東","栃木県":"関東","群馬県":"関東","埼玉県":"関東","千葉県":"関東","東京都":"関東","神奈川県":"関東","新潟県":"甲信越","長野県":"甲信越","山梨県":"甲信越","岐阜県":"中部","静岡県":"中部","愛知県":"中部","三重県":"中部","富山県":"北陸","石川県":"北陸","福井県":"北陸","滋賀県":"関西","京都府":"関西","大阪府":"関西","兵庫県":"関西","奈良県":"関西","和歌山県":"関西","鳥取県":"中国","島根県":"中国","岡山県":"中国","広島県":"中国","山口県":"中国","徳島県":"四国","香川県":"四国","愛媛県":"四国","高知県":"四国","福岡県":"九州","佐賀県":"九州","長崎県":"九州","大分県":"九州","熊本県":"九州","宮崎県":"九州","鹿児島県":"九州","沖縄県":"沖縄"};
+
+    // --- 運賃マスタ ---
+    const S_MASTER = { 600: {"北海道":900,"北東北":700,"南東北":650,"関東":600,"甲信越":650,"中部":650,"北陸":680,"関西":700,"中国":750,"四国":780,"北九州":880, "南九州":930}, 800: {"北海道":1000,"北東北":800,"南東北":750,"関東":700,"甲信越":750,"中部":750,"北陸":780,"関西":800,"中国":850,"四国":880,"北九州":980, "南九州":1030}, 1000: {"北海道":1200,"北東北":1000,"南東北":950,"関東":900,"甲信越":950,"中部":950,"北陸":980,"関西":1000,"中国":1050,"四国":1080,"北九州":1180, "南九州":1230}, 1400: {"北海道":1400,"北東北":1200,"南東北":1150,"関東":1100,"甲信越":1150,"中部":1150,"北陸":1180,"関西":1200,"中国":1250,"四国":1280,"北九州":1380, "南九州":1430}, 1600: {"北海道":1600,"北東北":1400,"南東北":1350,"関東":1300,"甲信越":1350,"中部":1350,"北陸":1380,"関西":1400,"中国":1450,"四_国":1480,"北九州":1580, "南九州":1630}, 1700: {"北海道":3650,"北東北":3150,"南東北":2950,"関東":2250,"甲信越":2900,"中部":2900,"北陸":2900,"関西":2900,"中国":3150,"四国":3150,"北九州":3350, "南九州":3650}, 1800: {"北海道":4100,"北東北":3450,"南東北":3250,"関東":2500,"甲信越":3150,"中部":3150,"北陸":3150,"関西":3150,"中国":3450,"四国":3450,"北九州":3700, "南九州":4050}, 2000: {"北海道":5050,"北東北":4200,"南東北":3950,"関東":3000,"甲信越":3850,"中部":3850,"北陸":3850,"関西":3850,"中国":4200,"四国":4200,"北九州":4600, "南九州":5050}, 2200: {"北海道":6400,"北東北":4950,"南東北":4650,"関東":3500,"甲信越":4500,"中部":4500,"北陸":4500,"関西":4500,"中国":5000,"四国":5000,"北九州":5450, "南九州":6000}, 2400: {"北海道":8000,"北東北":6500,"南東北":6050,"関東":4500,"甲信越":5850,"中部":5850,"北陸":5850,"関西":5850,"中国":6500,"四国":6500,"北九州":7150, "南九州":7950}, 2600: {"北海道":10000,"北東北":8050,"南東北":7450,"関東":5500,"甲信越":7200,"中部":7200,"北陸":7200,"関西":7200,"中国":8050,"四国":8050,"北九州":8850, "南九州":9900} };
+    const Y_MASTER = { 600: {"北海道":1180,"北東北":840,"南東北":750,"関東":750,"甲信越":750,"中部":750,"北陸":750,"関西":840,"中国":950,"四国":930,"九州":1160,"沖縄":1320}, 800: {"北海道":1390,"北東北":1070,"南東北":980,"関東":980,"甲信越":980,"中部":980,"北陸":980,"関西":1070,"中国":1180,"四_国":1160,"九州":1390,"沖縄":1880}, 1000: {"北海道":1640,"北東北":1320,"南東北":1230,"関東":1230,"甲信越":1230,"中部":1230,"北陸":1230,"関西":1320,"中国":1430,"四国":1410,"九州":1640,"沖縄":2460}, 1200: {"北海道":1900,"北東北":1580,"南東北":1490,"関東":1490,"甲信越":1490,"中部":1490,"北陸":1490,"関西":1580,"中国":1690,"四国":1670,"九州":1900,"沖縄":3050}, 1400: {"北海道":2160,"北東北":1840,"南東北":1750,"関東":1750,"甲信越":1750,"中部":1750,"北陸":1750,"関西":1840,"中国":1950,"四国":1930,"九州":2160,"沖縄":3680}, 1600: {"北海道":2440,"北東北":2120,"南東北":2030,"関東":2030,"甲信越":2030,"中部":2030,"北陸":2030,"関西":2120,"中国":2230,"四国":2210,"九州":2440,"沖縄":4310}, 1800: {"北海道":2710,"北東北":2390,"南東北":2300,"関東":2300,"甲信越":2300,"中部":2300,"北陸":2300,"関西":2390,"中国":2500,"四国":2480,"九州":2710,"沖縄":4940}, 2000: {"北海道":3140,"北東北":2820,"南東北":2730,"関東":2730,"甲信越":2730,"中部":2730,"北陸":2730,"関西":2820,"中国":2930,"四国":2910,"九州":3140,"沖縄":5840} };
+    const K_MASTER = { "北海道":{2:1190,5:1690,10:2180,15:2580,20:3110,30:6340,40:9510,50:12680}, "北東北":{2:880,5:1190,10:1590,15:1890,20:2280,30:2970,40:3670,50:4460}, "南東北":{2:770,5:1090,10:1490,15:1790,20:2180,30:2580,40:3370,50:3870}, "関東":{2:550,5:700,10:830,15:990,20:1100,30:1430,40:1760,50:2200}, "甲信越":{2:770,5:1050,10:1210,15:1490,20:1790,30:2480,40:3070,50:3770}, "中部":{2:770,5:1050,10:1210,15:1490,20:1790,30:2480,40:3070,50:3770}, "北陸":{2:800,5:1190,10:1590,15:1890,20:2280,30:2970,40:3670,50:4260}, "関西":{2:800,5:1190,10:1590,15:1890,20:2280,30:2970,40:3670,50:4260}, "中国":{2:900,5:1290,10:1890,15:2280,20:2970,30:4860,40:6140,50:8320}, "四国":{2:900,5:1290,10:1890,15:2280,20:2970,30:4860,40:6140,50:8320}, "九州":{2:1090,5:1490,10:2080,15:2380,20:3070,30:5350,40:7230,50:9310}, "沖縄":{2:1390,5:1890,10:2380,15:2880,20:3470,30:5940,40:8420,50:10890} };
+    const K_ADD_MASTER = { "北海道":3080, "北東北":940, "南東北":770, "関東":550, "甲信越":770, "中部":770, "北陸":880, "関西":880, "中国":1980, "四国":1980, "九州":2420, "沖縄":3080 };
+
+    let productMaster = [];
+    function cleanNum(v) { return Number(String(v).replace(/[^0-9.]/g, '')) || 0; }
+
+    document.getElementById('csvFile').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const lines = event.target.result.split(/\r\n|\n/);
+            productMaster = lines.slice(1).map(line => {
+                const c = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+                if (c.length < 7) return null;
+                return { 
+                    model: (c[0]||"").replace(/"/g,'').trim(), eda: (c[1]||"").replace(/"/g,'').trim(),
+                    l: cleanNum(c[2]), w: cleanNum(c[3]), h: cleanNum(c[4]), weight: cleanNum(c[6]), 
+                    isCharter: cleanNum(c[7])===1, isAssist: cleanNum(c[8])===1, onlyKinroji: cleanNum(c[9])===1 
+                };
+            }).filter(x => x && x.model);
+            updateCandidates();
+            alert("読み込み完了");
+        };
+        reader.readAsText(e.target.files[0], "UTF-8");
+    };
+
+    function updateCandidates() {
+        const list = document.getElementById('modelCandidates');
+        list.innerHTML = "";
+        productMaster.forEach(i => { const opt = document.createElement('option'); opt.value = i.model; list.appendChild(opt); });
+    }
+
+    document.getElementById('modelInput').onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            const val = e.target.value.trim();
+            const items = productMaster.filter(i => i.model === val);
+            if (items.length > 0) { items.forEach(i => addRow(i)); e.target.value = ''; }
+            else { alert("未登録型番です"); }
+        }
+    };
+
+    function addRow(item) {
+        const tbody = document.getElementById('pkgBody');
+        const row = tbody.insertRow();
+        const isM = !!item;
+        const edaVal = (isM && item.eda) ? item.eda : (isM ? "ー" : "");
+
+        row.innerHTML = `
+            <td><input type="checkbox" class="row-chk"></td>
+            <td class="row-idx"></td>
+            <td><input type="text" class="eda-input in-eda" value="${edaVal}"></td>
+            <td class="model-cell">
+                <input type="text" class="text-input row-model ${isM?'input-readonly':''}" value="${isM?item.model:''}" ${isM?'readonly':''}>
+                <div class="row-alert">${item?.isCharter?'※チャーターです。':''} ${item?.isAssist?'※助手が必要です。':''}</div>
+                <input type="hidden" class="in-charter" value="${item?.isCharter?'1':'0'}">
+                <input type="hidden" class="in-assist" value="${item?.isAssist?'1':'0'}">
+                <input type="hidden" class="in-only-k" value="${item?.onlyKinroji?'1':'0'}">
+            </td>
+            <td><input type="number" class="qty-input in-qty" value="1" min="1"></td>
+            <td><input type="text" class="size-input in-l ${isM?'input-readonly':''}" value="${isM?item.l:0}" ${isM?'readonly':''}></td>
+            <td><input type="text" class="size-input in-w ${isM?'input-readonly':''}" value="${isM?item.w:0}" ${isM?'readonly':''}></td>
+            <td><input type="text" class="size-input in-h ${isM?'input-readonly':''}" value="${isM?item.h:0}" ${isM?'readonly':''}></td>
+            <td><span class="read-only-num out-total">0</span></td>
+            <td><input type="text" class="size-input in-weight ${isM?'input-readonly':''}" value="${isM?item.weight:0}" ${isM?'readonly':''}></td>
+            <td>
+                <div class="row-mode-selector">
+                    <button class="active mode-weight" onclick="setMode(this, 'weight')">重量</button>
+                    <button class="mode-vol" onclick="setMode(this, 'vol')">容積</button>
+                    <input type="hidden" class="in-mode" value="weight">
+                </div>
+            </td>
+            <td class="out-judge-total">0.0</td>
+            <td><button style="background:#ff7675; color:white; border:none; padding:4px; border-radius:3px; cursor:pointer;" onclick="deleteThisRow(this)">削除</button></td>
+        `;
+
+        if (item?.isCharter) document.getElementById('globalCharter').checked = true;
+        if (item?.isAssist) document.getElementById('globalAssist').checked = true;
+
+        row.querySelectorAll('input').forEach(el => el.oninput = () => calcRow(row));
+        renumber();
+        calcRow(row);
+    }
+
+    function setMode(btn, mode) {
+        const container = btn.parentElement;
+        container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        container.querySelector('.in-mode').value = mode;
+        calcRow(container.closest('tr'));
+    }
+
+    function calcRow(row) {
+        const q = cleanNum(row.querySelector('.in-qty').value) || 1;
+        const l = cleanNum(row.querySelector('.in-l').value);
+        const w = cleanNum(row.querySelector('.in-w').value);
+        const h = cleanNum(row.querySelector('.in-h').value);
+        const weight = cleanNum(row.querySelector('.in-weight').value);
+        const mode = row.querySelector('.in-mode').value;
+
+        const totalMM = l + w + h;
+        row.querySelector('.out-total').innerText = totalMM;
+
+        const volW = (l * w * h) / 6000000;
+        let judge = (mode === "vol") ? volW : weight;
+        let statusClass = (mode === "vol") ? "status-vol" : "status-weight";
+
+        const cell = row.querySelector('.out-judge-total');
+        cell.innerText = (judge * q).toFixed(1);
+        cell.className = "out-judge-total " + statusClass;
+        updateTotalSummary();
+    }
+
+    function refreshGlobalOptions() {
+        let anyC = false, anyA = false;
+        document.querySelectorAll('#pkgBody tr').forEach(row => {
+            if (row.querySelector('.in-charter').value === "1") anyC = true;
+            if (row.querySelector('.in-assist').value === "1") anyA = true;
+        });
+        document.getElementById('globalCharter').checked = anyC;
+        document.getElementById('globalAssist').checked = anyA;
+    }
+
+    function updateTotalSummary() {
+        let total = 0;
+        document.querySelectorAll('.out-judge-total').forEach(td => total += Number(td.innerText));
+        document.getElementById('totalW').innerText = total.toFixed(1);
+    }
+
+    function calculate() {
+        const pref = document.getElementById('destination').value;
+        if(!pref) return alert("配送先を選択してください");
+        
+        const sArea = PREF_TO_SAGAWA[pref];
+        const yArea = PREF_TO_YAMATO[pref];
+        const kArea = PREF_TO_KINROJI[pref];
+
+        let totalW = 0, sSum = 0, ySum = 0, sOver = false, yOver = false, onlyK = false;
+        const isOkinawa = (pref === "沖縄県");
+
+        const chFee = Number(document.getElementById('inputCharterFee').value);
+        const asFee = Number(document.getElementById('inputAssistFee').value);
+        const hasCh = document.getElementById('globalCharter').checked;
+        const hasAs = document.getElementById('globalAssist').checked;
+
+        document.querySelectorAll('#pkgBody tr').forEach(row => {
+            const q = cleanNum(row.querySelector('.in-qty').value);
+            const mm = cleanNum(row.querySelector('.out-total').innerText);
+            const wRow = Number(row.querySelector('.out-judge-total').innerText);
+            if (row.querySelector('.in-only-k').value === "1") onlyK = true;
+            totalW += wRow;
+            
+            // 佐川計算
+            if (mm > 2600) sOver = true;
+            else if (!isOkinawa) {
+                const sk = Object.keys(S_MASTER).map(Number).sort((a,b)=>a-b).find(k => mm <= k);
+                if (sk && S_MASTER[sk][sArea]) sSum += (S_MASTER[sk][sArea] * q); else sOver = true;
+            }
+            // ヤマト計算
+            if (mm > 2000) yOver = true;
+            else {
+                const yk = Object.keys(Y_MASTER).map(Number).sort((a,b)=>a-b).find(k => mm <= k);
+                if (yk && Y_MASTER[yk][yArea]) ySum += (Y_MASTER[yk][yArea] * q); else yOver = true;
+            }
+        });
+
+        // 近ロジ計算
+        let weightP = 0;
+        if (totalW > 0 && K_MASTER[kArea]) {
+            if (totalW <= 50) {
+                const wk = Object.keys(K_MASTER[kArea]).map(Number).sort((a,b)=>a-b).find(k => totalW <= k);
+                weightP = K_MASTER[kArea][wk];
+            } else { weightP = K_MASTER[kArea][50] + (Math.ceil((totalW - 50) / 10) * K_ADD_MASTER[kArea]); }
+        }
+        const kTotal = weightP + (hasCh ? chFee : 0) + (hasAs ? asFee : 0);
+
+        // 表示反映
+        const sR = document.getElementById('res-sagawa');
+        if(isOkinawa) { sR.innerText="別途別料金"; sR.className="price out-of-size"; }
+        else if(sOver || onlyK) { sR.innerText="サイズ外"; sR.className="price out-of-size"; }
+        else { sR.innerText=sSum.toLocaleString()+" 円"; sR.className="price"; }
+
+        const yR = document.getElementById('res-yamato');
+        if(yOver || onlyK) { yR.innerText="サイズ外"; yR.className="price out-of-size"; }
+        else { yR.innerText=ySum.toLocaleString()+" 円"; yR.className="price"; }
+
+        document.getElementById('res-kintetsu').innerText = kTotal.toLocaleString() + " 円";
+        document.getElementById('res-kintetsu-detail').innerHTML = `配送先:${kArea} / 混載費:${weightP.toLocaleString()}円` + (hasCh?`<br>+チャーター:${chFee.toLocaleString()}円`:"") + (hasAs?`<br>+助手:${asFee.toLocaleString()}円`:"");
+    }
+
+    function deleteThisRow(btn) { btn.closest('tr').remove(); renumber(); refreshGlobalOptions(); updateTotalSummary(); }
+    function deleteSelected() { document.querySelectorAll('.row-chk:checked').forEach(c => c.closest('tr').remove()); renumber(); refreshGlobalOptions(); updateTotalSummary(); }
+    function renumber() { document.querySelectorAll('.row-idx').forEach((td, i) => td.innerText = i + 1); }
+    function toggleAll(m) { document.querySelectorAll('.row-chk').forEach(c => c.checked = m.checked); }
+</script>
+</body>
+</html>
